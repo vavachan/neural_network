@@ -106,7 +106,15 @@ void mean_squared_error_2d_gpu(Matrix* predictions, Matrix* target, float *error
 	dim3 n_threads(block_size,block_size);
 	//cout<<"time\t"<<time(0)<<"\n";
 
+	//std::cout<<*error<<"\t"<<predictions->dim_x<<"\t"<<predictions->dim_y<<"\n";
 	mean_squared_error_2d <<< n_blocks,n_threads >>> (predictions->M,target->M,predictions->dim_x,predictions->dim_y, error);
+	//float cost =0. ;
+	//for(int i=0; i < predictions->dim_y; i++)
+	//{
+	//	cost = cost+(predictions->M[i]-target->M[i])*(predictions->M[i]-target->M[i]);
+	//}
+	//cost = cost/predictions->dim_y;
+	////std::cout<<cost<<"\n";
 	cudaDeviceSynchronize();
 }
 __global__ 
@@ -114,6 +122,7 @@ void mean_squared_error_2d(float *predictions, float *target, int size_x, int si
 {
 	int col = blockDim.x*blockIdx.x+threadIdx.x;
 	int row = blockDim.y*blockIdx.y+threadIdx.y;
+	//atomicAdd(error,1);
 	if(col < size_x and row < size_y)
 	{
 		//output[row*output_dim_x+col] = 1/(1+exp(input[row*input_dim_x+col]));

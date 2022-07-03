@@ -68,13 +68,18 @@ int main()
 
 
 	LINLAYER_1.forward(&X,&Y_NN);
-
+		
+	float *cost;	
+	cudaMallocManaged(&cost,sizeof(float));
+	mean_squared_error_2d_gpu(&Y_NN,&Y,cost);
+	cout<<*cost<<"\n";
+		
 	for(int i=0;i<Y_NN.dim_x;i++)  
 	{
 		for(int j=0;j<Y_NN.dim_y;j++)
 		{
 			//Y.M[j*Y.dim_x+i] = sin_function[j];
-			cout<<j<<"\t"<<Y_NN.M[j*Y.dim_x+i]<<"\n";
+			//cout<<j<<"\t"<<Y_NN.M[j*Y.dim_x+i]<<"\n";
 			//B.M[j*sizeX+i] = rand()%10;
 		}
 	}
