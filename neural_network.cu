@@ -89,6 +89,26 @@ void sigmoid_function(float *input, float *output, int input_dim_x, int input_di
 
 }
 
+void mean_squared_error_2d_gpu(Matrix* predictions, Matrix* target, float *error)
+{
+	int block_size = 32;
+
+	if(!((predictions->dim_x == target->dim_x) and (predictions->dim_y == target->dim_y)))
+	{
+		std::cout<<"error dimension miss match \n"<<"\n";
+	}
+
+	int n_blocks_x=(predictions->dim_x+block_size-1)/block_size; 
+	int n_blocks_y=(predictions->dim_y+block_size-1)/block_size; 
+	//cout<<n_blocks_x<<"\t"<<n_blocks_y<<"\n";
+
+	dim3 n_blocks(n_blocks_x,n_blocks_y);
+	dim3 n_threads(block_size,block_size);
+	//cout<<"time\t"<<time(0)<<"\n";
+
+	mean_squared_error_2d <<< n_blocks,n_threads >>> (predictions->M,target->M,predictions->dim_x,predictions->dim_y, error);
+	cudaDeviceSynchronize();
+}
 __global__ 
 void mean_squared_error_2d(float *predictions, float *target, int size_x, int size_y, float *error)
 {
@@ -97,7 +117,7 @@ void mean_squared_error_2d(float *predictions, float *target, int size_x, int si
 	if(col < size_x and row < size_y)
 	{
 		//output[row*output_dim_x+col] = 1/(1+exp(input[row*input_dim_x+col]));
-		atomicAdd(error,fdividef(powf(predictions[row*size_x+col]-target[row*size_x+col],2)))
+		atomicAdd(error,fdividef(powf(predictions[row*size_x+col]-target[row*size_x+col],2),size_x*size_y));
 	}
 
 }

@@ -32,6 +32,7 @@ class sigmoid_layer : public layer
 void sigmoid_layer_forward_gpu(Matrix *input, Matrix *output);
 __global__ void sigmoid_function(float *, float *, int,int, int,int);
 
-__global__ void mean_squared_error_2d(float *,float *, int, int, float *)
+void mean_squared_error_2d_gpu(Matrix *prediction, Matrix *target, float *error);
+__global__ void mean_squared_error_2d(float *,float *, int, int, float *);
 
 #endif // NEURAL_NETWORK_H
