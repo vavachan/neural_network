@@ -2,10 +2,12 @@
 #include<iostream>
 #include "matrix_util.h"
 #include "neural_network.h"
+#include "sequential.h"
 #include<stdio.h>
 #include<stdlib.h>
 #include<time.h>
 #include <cmath>
+#include <vector>
 
 using namespace std;
 
@@ -65,13 +67,20 @@ int main()
 	// Consider a single linear layer 
 
 	layer LINLAYER_1(X.dim_y,Y.dim_y);
+	sigmoid_layer SIGMOID_1(X.dim_y,Y.dim_y);
 
+	vector<layer*> nn{&LINLAYER_1,&SIGMOID_1};
 
-	LINLAYER_1.forward(&X,&Y_NN);
+	sequential_NN neural_network(nn);
+
+	//LINLAYER_1.forward(&X,&Y_NN);
 		
 	float *cost;	
 	cudaMallocManaged(&cost,sizeof(float));
-	mean_squared_error_2d_gpu(&Y_NN,&Y,cost);
+	
+	Matrix cost_gradient(size_x,size_y);
+
+	mean_squared_error_2d_gpu(&Y_NN,&Y,&cost_gradient,cost);
 	cout<<*cost<<"\n";
 		
 	for(int i=0;i<Y_NN.dim_x;i++)  

@@ -9,12 +9,13 @@ class layer
 		int inp_size;
 		int out_size;
 		Matrix * Weight;
+		Matrix * WeightT;
 	        Matrix * dWeight;
 	        Matrix * Bias;
 	        Matrix * dBias;
 	        void forward(Matrix *, Matrix *);
 		layer(int,int);
-	////////void backward(Matrix *,Matrix *);
+	        void backward(Matrix *,Matrix *);
 };
 
 
@@ -24,15 +25,16 @@ class sigmoid_layer : public layer
 	// features of the linear layer
 	// this will apply a sigmoid function to the output of 
 	// linear layer. 
-	sigmoid_layer(int ,int ); // I hope this constructor works.
-	void forward(Matrix *, Matrix *);
+	public :
+		sigmoid_layer(int ,int ); // I hope this constructor works.
+		void forward(Matrix *, Matrix *);
 };
 
 
 void sigmoid_layer_forward_gpu(Matrix *input, Matrix *output);
 __global__ void sigmoid_function(float *, float *, int,int, int,int);
 
-void mean_squared_error_2d_gpu(Matrix *prediction, Matrix *target, float *error);
-__global__ void mean_squared_error_2d(float *,float *, int, int, float *);
+void mean_squared_error_2d_gpu(Matrix *prediction, Matrix *target, Matrix *gradient, float *error);
+__global__ void mean_squared_error_2d(float *prediction,float *target, float *gradient, int sizex, int sizey, float *error);
 
 #endif // NEURAL_NETWORK_H

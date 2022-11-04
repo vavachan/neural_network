@@ -7,6 +7,7 @@ layer::layer(int input_S, int output_S)
 	inp_size = input_S;
 	out_size = output_S;
 	Weight  = new Matrix(inp_size,out_size);
+	WeightT  = new Matrix(out_size,inp_size);
 	dWeight = new Matrix(inp_size,out_size);
 	Bias    = new Matrix(1,out_size);
 	dBias   = new Matrix(1,out_size);
@@ -44,6 +45,23 @@ void layer::forward(Matrix* input, Matrix* output)
 	matrix_multiply_add_gpu(Weight,input,Bias,output);
 }
 
+void layer::backward(Matrix* gradient_of_this_layer,Matrix* gradient_from_prev_layer)
+{
+	/* This is backward propogation part of the layer. 
+	   Here we find the derivative of the cost function 
+	   with respect to the weights associated with this layer. 
+	   This will have contribution due to the derivatives 
+	   of all the previous layers. This is given to the function 
+	   as delta. The only thing this function is supposed to do 
+	   is multiply the transpose of weights of this layer with delta. 
+	   And this is the new delta which will be passed on to the  
+	   previous layer after multiplying the elements with 
+	   the derivative of the activation function etc. To find the derivative of cost function 
+	   with respect to the weights of this layer, we only 
+	   need the delta and the input value from the previous layer.  
+	 */
+	
+}
 sigmoid_layer::sigmoid_layer(int input_S, int output_S) : layer(input_S, output_S)
 {
 	;//layer::layer(int input_S, int output_S);
@@ -52,7 +70,8 @@ sigmoid_layer::sigmoid_layer(int input_S, int output_S) : layer(input_S, output_
 
 void sigmoid_layer::forward(Matrix* input, Matrix* output)
 {
-	layer::forward(input,output);
+	//layer::forward(input,output);
+	sigmoid_layer_forward_gpu(input,output);
 
 }
 
@@ -89,7 +108,7 @@ void sigmoid_function(float *input, float *output, int input_dim_x, int input_di
 
 }
 
-void mean_squared_error_2d_gpu(Matrix* predictions, Matrix* target, float *error)
+void mean_squared_error_2d_gpu(Matrix* predictions, Matrix* target, Matrix *gradient, float *error)
 {
 	int block_size = 32;
 
@@ -107,7 +126,7 @@ void mean_squared_error_2d_gpu(Matrix* predictions, Matrix* target, float *error
 	//cout<<"time\t"<<time(0)<<"\n";
 
 	//std::cout<<*error<<"\t"<<predictions->dim_x<<"\t"<<predictions->dim_y<<"\n";
-	mean_squared_error_2d <<< n_blocks,n_threads >>> (predictions->M,target->M,predictions->dim_x,predictions->dim_y, error);
+	mean_squared_error_2d <<< n_blocks,n_threads >>> (predictions->M,target->M,gradient->M,predictions->dim_x, predictions->dim_y, error);
 	//float cost =0. ;
 	//for(int i=0; i < predictions->dim_y; i++)
 	//{
@@ -118,7 +137,7 @@ void mean_squared_error_2d_gpu(Matrix* predictions, Matrix* target, float *error
 	cudaDeviceSynchronize();
 }
 __global__ 
-void mean_squared_error_2d(float *predictions, float *target, int size_x, int size_y, float *error)
+void mean_squared_error_2d(float *predictions, float *target, float *gradient, int size_x, int size_y, float *error)
 {
 	int col = blockDim.x*blockIdx.x+threadIdx.x;
 	int row = blockDim.y*blockIdx.y+threadIdx.y;
@@ -127,27 +146,9 @@ void mean_squared_error_2d(float *predictions, float *target, int size_x, int si
 	{
 		//output[row*output_dim_x+col] = 1/(1+exp(input[row*input_dim_x+col]));
 		atomicAdd(error,fdividef(powf(predictions[row*size_x+col]-target[row*size_x+col],2),size_x*size_y));
+		gradient[row*size_x+col] = fdividef(2.*(predictions[row*size_x+col]-target[row*size_x+col]),size_x*size_y) ;
 	}
 
 }
 
 //
-//void layer::backward(Matrix* delta,Matrix* input)
-//{
-//	/* This is backward propogation part of the layer. 
-//	   Here we find the derivative of the cost function 
-//	   with respect to the weights associated with this layer. 
-//	   This will have contribution due to the derivatives 
-//	   of all the previous layers. This is given to the function 
-//	   as delta. The only thing this function is supposed to do 
-//	   is multiply the transpose of weights of this layer with delta. 
-//	   And this is the new delta which will be passed on to the  
-//	   previous layer after multiplying the elements with 
-//	   the derivative of the activation function etc. To find the derivative of cost function 
-//	   with respect to the weights of this layer, we only 
-//	   need the delta and the input value from the previous layer.  
-//	 */
-//	
-//
-//
-//}
