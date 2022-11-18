@@ -13,8 +13,8 @@ class sequential_NN
 	public:
 		vector<layer*> layers;
 		sequential_NN(vector<layer*>);
-		void forward(Matrix *,Matrix *);
+		void forward(Matrix *,Matrix **);
 		void update();
 };
-void sequential_forward_gpu(Matrix *input ,std::vector< layer*> layers, Matrix *output);
+void sequential_forward_gpu(Matrix *input ,std::vector< layer*> layers, Matrix **output);
 #endif

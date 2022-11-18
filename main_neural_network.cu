@@ -43,7 +43,7 @@ int main()
 	int size_y = 100;
 	Matrix X(size_x,size_y);
 	Matrix Y(size_x,size_y);
-	Matrix Y_NN(size_x,size_y);
+	Matrix* Y_NN = nullptr; //(size_x,size_y);
 
 	for(int i=0;i<X.dim_x;i++)  
 	{
@@ -58,38 +58,47 @@ int main()
 		for(int j=0;j<Y.dim_y;j++)
 		{
 			Y.M[j*Y.dim_x+i] = sin_function[j];
+			//cout<<i<<"\t"<<j<<"\t"<<Y_NN.M[j*Y.dim_x+i]<<"\n";
 			//B.M[j*sizeX+i] = rand()%10;
 		}
 	}
 	// now I have X matrix and Y matrix 
 	// now I have to initialize a neural network
 
-	// Consider a single linear layer 
+	//layer LINLAYER_1(X.dim_y,Y.dim_y);
+	//sigmoid_layer SIGMOID_1(X.dim_y,Y.dim_y);
+	//layer LINLAYER_2(X.dim_y,Y.dim_y);
 
-	layer LINLAYER_1(X.dim_y,Y.dim_y);
-	sigmoid_layer SIGMOID_1(X.dim_y,Y.dim_y);
+	
 
-	vector<layer*> nn{&LINLAYER_1,&SIGMOID_1};
+	layer LINLAYER_1(X.dim_y,1000);
+	sigmoid_layer SIGMOID_1(X.dim_y,1000);
+	layer LINLAYER_2(1000,Y.dim_y);
+
+
+	vector<layer*> nn{&SIGMOID_1,&LINLAYER_2};
+	//vector<layer*> nn{&LINLAYER_1};
 
 	sequential_NN neural_network(nn);
 
-	//LINLAYER_1.forward(&X,&Y_NN);
-		
 	float *cost;	
 	cudaMallocManaged(&cost,sizeof(float));
-	
 	Matrix cost_gradient(size_x,size_y);
 
-	mean_squared_error_2d_gpu(&Y_NN,&Y,&cost_gradient,cost);
+	//cout<<Y_NN<<"\n";	
+	//Y_NN->print_matrix();
+
+	// forward propogation
+	neural_network.forward(&X,&Y_NN);
+
+	mean_squared_error_2d_gpu(Y_NN,&Y,&cost_gradient,cost);
+
 	cout<<*cost<<"\n";
+	// Now we have to do backpropogation 
+	// We have the gradient of the cost function right now 
+	Matrix* tmp_delta = nullptr;
+	tmp_delta = new Matrix(1,1000);
+	LINLAYER_2.backward(&cost_gradient,tmp_delta);
 		
-	for(int i=0;i<Y_NN.dim_x;i++)  
-	{
-		for(int j=0;j<Y_NN.dim_y;j++)
-		{
-			//Y.M[j*Y.dim_x+i] = sin_function[j];
-			//cout<<j<<"\t"<<Y_NN.M[j*Y.dim_x+i]<<"\n";
-			//B.M[j*sizeX+i] = rand()%10;
-		}
-	}
+	return 0;
 }

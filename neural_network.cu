@@ -6,6 +6,8 @@ layer::layer(int input_S, int output_S)
 {
 	inp_size = input_S;
 	out_size = output_S;
+	activations = new Matrix(1,inp_size);
+	activationsT = new Matrix(inp_size,1);
 	Weight  = new Matrix(inp_size,out_size);
 	WeightT  = new Matrix(out_size,inp_size);
 	dWeight = new Matrix(inp_size,out_size);
@@ -42,10 +44,11 @@ void layer::forward(Matrix* input, Matrix* output)
 	   Therefore the Weight->dim_x has to match input->dim_y 
 	   Such checks are  done here ? // why o why
 	 */
+	activations = input;	
 	matrix_multiply_add_gpu(Weight,input,Bias,output);
 }
 
-void layer::backward(Matrix* gradient_of_this_layer,Matrix* gradient_from_prev_layer)
+void layer::backward(Matrix* delta_n,Matrix* delta_n_minus_one)
 {
 	/* This is backward propogation part of the layer. 
 	   Here we find the derivative of the cost function 
@@ -60,25 +63,70 @@ void layer::backward(Matrix* gradient_of_this_layer,Matrix* gradient_from_prev_l
 	   with respect to the weights of this layer, we only 
 	   need the delta and the input value from the previous layer.  
 	 */
-	
+
+	// First we need to take the transpose of the weight matrix
+	// We need to use this matrix to generate \delta_l
+
+	matrix_transpose_gpu(Weight,WeightT);
+	matrix_transpose_gpu(activations,activationsT);
+	matrix_multiply_gpu(delta_n,activationsT,dWeight);
+
+	matrix_multiply_gpu(WeightT,delta_n,delta_n_minus_one);
 }
 sigmoid_layer::sigmoid_layer(int input_S, int output_S) : layer(input_S, output_S)
 {
-	;//layer::layer(int input_S, int output_S);
+	/* currently lets keep this as the activations from corresponding 
+	   linear layer ( z_n = a_n-1 * W_nn-1 + b_n ) */
+
+	/* While sigmoid layer can accept inp_size and out_size 
+	   of different size, then the linear layer 
+	   within the sigmoid function has to take care of the 
+	   size change using the weight matrix. */
+	sigmoid_activations = new Matrix(1,input_S); 
 }
 
 
 void sigmoid_layer::forward(Matrix* input, Matrix* output)
 {
-	//layer::forward(input,output);
-	sigmoid_layer_forward_gpu(input,output);
+	Matrix* tmp = nullptr;
+	tmp = new Matrix(output->dim_x,output->dim_y);
+
+	layer::forward(input,tmp);
+	sigmoid_activations = tmp; // we will use this for calculating the derivatives. 
+	sigmoid_layer_forward_gpu(tmp,output);
+
+	delete tmp;
+}
+
+void sigmoid_layer::backward(Matrix* delta_n,Matrix* delta_n_minus_one)
+{
+	/* for the backward prop of the sigmoid layer, 
+	   first the derivative of the sigmoid function is multiplied 
+	   with the ``delta'' that this layer recieved from 
+	   the next layer ( n -> n-1) [remember this is going backward]
+	   */
+
+	// the derivative of the sigmoid function measured at the activation values 
+	// that were recieved by this layer during forward pass is multiplied 
+	// with the gradients that will  
+	Matrix* dsigma = nullptr;
+	Matrix* dsigma_dot_delta = nullptr;
+	dsigma = new Matrix(delta_n->dim_x,delta_n->dim_y);
+	dsigma_dot_delta = new Matrix(delta_n->dim_x,delta_n->dim_y);
+
+	sigmoid_layer_backward_gpu(sigmoid_activations,dsigma);
+	matrix_hadamard_product_gpu(dsigma,delta_n,dsigma_dot_delta);
+
+	layer::backward(dsigma_dot_delta,delta_n_minus_one);
+
+	delete dsigma;
+	delete dsigma_dot_delta;
 
 }
 
 void sigmoid_layer_forward_gpu(Matrix* input, Matrix* output)
 {
 	int block_size = 32;
-
 	if(!((input->dim_x == output->dim_x) and (input->dim_y == output->dim_y)))
 	{
 		std::cout<<"error dimension miss match \n"<<"\n";
@@ -96,18 +144,48 @@ void sigmoid_layer_forward_gpu(Matrix* input, Matrix* output)
 	cudaDeviceSynchronize();
 }
 
+void sigmoid_layer_backward_gpu(Matrix* input, Matrix* output)
+{
+	int block_size = 32;
+	if(!((input->dim_x == output->dim_x) and (input->dim_y == output->dim_y)))
+	{
+		std::cout<<"error dimension miss match \n"<<"\n";
+	}
+
+	int n_blocks_x=(input->dim_x+block_size-1)/block_size; 
+	int n_blocks_y=(input->dim_y+block_size-1)/block_size; 
+	//cout<<n_blocks_x<<"\t"<<n_blocks_y<<"\n";
+
+	dim3 n_blocks(n_blocks_x,n_blocks_y);
+	dim3 n_threads(block_size,block_size);
+	//cout<<"time\t"<<time(0)<<"\n";
+
+	dsigmoid_function <<< n_blocks,n_threads >>> (input->M,output->M,input->dim_x,input->dim_y,output->dim_x,output->dim_y);
+	cudaDeviceSynchronize();
+}
 __global__
 void sigmoid_function(float *input, float *output, int input_dim_x, int input_dim_y, int output_dim_x, int output_dim_y)
 {
 	int col = blockDim.x*blockIdx.x+threadIdx.x;
 	int row = blockDim.y*blockIdx.y+threadIdx.y;
+	// We will compute stupidly. 
 	if(col < output_dim_x and row < output_dim_y)
 	{
-		output[row*output_dim_x+col] = 1/(1+exp(input[row*input_dim_x+col]));
+		output[row*output_dim_x+col] = exp(-1.*input[row*input_dim_x+col])/((1+exp(-1.*input[row*input_dim_x+col])*(1+exp(-1.*input[row*input_dim_x+col]))));
+	}
+}
+
+__global__
+void dsigmoid_function(float *input, float *output, int input_dim_x, int input_dim_y, int output_dim_x, int output_dim_y)
+{
+	int col = blockDim.x*blockIdx.x+threadIdx.x;
+	int row = blockDim.y*blockIdx.y+threadIdx.y;
+	if(col < output_dim_x and row < output_dim_y)
+	{
+		output[row*output_dim_x+col] = 1./(1+exp(-1.*input[row*input_dim_x+col]));
 	}
 
 }
-
 void mean_squared_error_2d_gpu(Matrix* predictions, Matrix* target, Matrix *gradient, float *error)
 {
 	int block_size = 32;
@@ -148,7 +226,4 @@ void mean_squared_error_2d(float *predictions, float *target, float *gradient, i
 		atomicAdd(error,fdividef(powf(predictions[row*size_x+col]-target[row*size_x+col],2),size_x*size_y));
 		gradient[row*size_x+col] = fdividef(2.*(predictions[row*size_x+col]-target[row*size_x+col]),size_x*size_y) ;
 	}
-
 }
-
-//
