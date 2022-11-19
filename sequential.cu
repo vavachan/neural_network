@@ -39,3 +39,34 @@ void sequential_forward_gpu(Matrix *input, std::vector< layer*> layers, Matrix *
 	//cout<<output<<"\n";
 	//delete curr_out;
 }
+
+void sequential_NN::backward(Matrix *delta_n)
+{
+
+	/* backward propagation works from the last.
+	   delta_n is the gradient of the cost function 
+	   as this is the only thing functions outside 
+	   this class should know off. */
+	Matrix* delta_n_minus_one = nullptr;
+	int layer_input_size;
+	for(int i= layers.size()-1; i>-1;i--)
+	{
+		layer *curr_layer = layers[i];
+
+		layer_input_size = curr_layer->inp_size;
+		//cout<<i<<"\t"<<layer_input_size<<"\n";
+		delta_n_minus_one = new Matrix(1.,layer_input_size);
+
+		curr_layer->backward(delta_n,delta_n_minus_one);
+
+		delta_n = delta_n_minus_one;
+	}
+}
+void sequential_NN::update()
+{
+
+	for(int i=0; i<layers.size(); i++)
+	{
+		layers[i]->update(-1.*0.5);
+	}
+}

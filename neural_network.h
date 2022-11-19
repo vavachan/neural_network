@@ -29,7 +29,7 @@ class layer
 	        virtual void forward(Matrix *, Matrix *);
 		layer(int,int);
 	        virtual void backward(Matrix *,Matrix *);
-		void update(Matrix *, float);
+		void update(float); // we have everything to update the weights.
 };
 
 

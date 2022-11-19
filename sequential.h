@@ -14,6 +14,8 @@ class sequential_NN
 		vector<layer*> layers;
 		sequential_NN(vector<layer*>);
 		void forward(Matrix *,Matrix **);
+		void backward(Matrix *); // backward prop only requires 
+					 // the delta from the gradient. rest it can make inside. 
 		void update();
 };
 void sequential_forward_gpu(Matrix *input ,std::vector< layer*> layers, Matrix **output);

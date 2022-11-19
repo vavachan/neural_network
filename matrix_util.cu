@@ -17,6 +17,7 @@ Matrix::~Matrix()
 }
 Matrix& Matrix::operator=(const Matrix& other)
 {
+	//std::cout<<"here ? \n";
 	if(this == &other)
 		return *this;
 	if((other.dim_x == this->dim_x) and (other.dim_y == this->dim_y))
@@ -54,6 +55,9 @@ void matrix_add_gpu(Matrix* A, Matrix* B, Matrix* C)
 	if(!((A->dim_x == B->dim_x) and (A->dim_y == B->dim_y) and (B->dim_x == C->dim_x)))
 	{
 		cout<<"error dimension miss match in add \n"<<"\n";
+		cout<<A->dim_x<<"\t"<<A->dim_y<<"\n";
+		cout<<B->dim_x<<"\t"<<B->dim_y<<"\n";
+		cout<<C->dim_x<<"\t"<<C->dim_y<<"\n";
 	}
 
 	int n_blocks_x=(C->dim_x+block_size-1)/block_size; 
@@ -88,6 +92,24 @@ void matrix_multiply_gpu(Matrix* A, Matrix* B, Matrix* C)
 	//cout<<"time\t"<<time(0)<<"\n";
 
 	matrix_multiply <<< n_blocks,n_threads >>> (A->M,B->M,C->M,A->dim_x,A->dim_y,B->dim_x,B->dim_y,C->dim_x,C->dim_y);
+	cudaDeviceSynchronize();
+
+}
+void matrix_scalar_product_gpu(Matrix* A, float alpha)
+{
+	/* this is just a rescaling of the matrix elements with alpha */
+	int block_size = 32;
+
+
+	int n_blocks_x=(A->dim_x+block_size-1)/block_size; 
+	int n_blocks_y=(A->dim_y+block_size-1)/block_size; 
+	//cout<<n_blocks_x<<"\t"<<n_blocks_y<<"\n";
+
+	dim3 n_blocks(n_blocks_x,n_blocks_y);
+	dim3 n_threads(block_size,block_size);
+	//cout<<"time\t"<<time(0)<<"\n";
+
+	matrix_scalar_product<<< n_blocks,n_threads >>> (A->M,A->dim_x,A->dim_y,alpha); 
 	cudaDeviceSynchronize();
 
 }
@@ -194,6 +216,17 @@ void matrix_add(float *A, float *B, float *C,  int A_dim_x, int A_dim_y, int B_d
 
 }
 
+__global__
+void matrix_scalar_product(float * A, int A_dim_x, int A_dim_y, float alpha)
+{
+	int col = blockDim.x*blockIdx.x+threadIdx.x;
+	int row = blockDim.y*blockIdx.y+threadIdx.y;
+	// this function should do C = A*B 
+	if(col < A_dim_x and row < A_dim_y)
+	{
+		A[row*A_dim_x+col] = alpha*A[row*A_dim_x+col];
+	}
+}
 __global__
 void matrix_hadamard_product(float * A, float * B, float *C, int A_dim_x, int A_dim_y)
 {

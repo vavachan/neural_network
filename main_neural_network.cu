@@ -17,7 +17,7 @@ float function(float x)
 	// x is considered to be an angle in degrees 
 	//x = x%360; // angle has to be between 0 and 360
 	float x_radians = x*M_PI/180;
-	return sin(x_radians);
+	return cos(x_radians);
 }
 
 int main()
@@ -85,20 +85,42 @@ int main()
 	cudaMallocManaged(&cost,sizeof(float));
 	Matrix cost_gradient(size_x,size_y);
 
+
+	for(int i=0; i<100; i++)
+	{
+		*cost=0.;
+		// forward propogation
+		neural_network.forward(&X,&Y_NN);
+		// calculate cost
+		mean_squared_error_2d_gpu(Y_NN,&Y,&cost_gradient,cost);
+		cout<<i<<"\t"<<*cost<<"\n";
+		// Now we have to do backpropogation 
+		// We have the gradient of the cost function right now 
+		neural_network.backward(&cost_gradient);
+		// update the weights
+		neural_network.update();
+	}
+	for(int i=0;i<Y_NN->dim_x;i++)  
+	{
+		for(int j=0;j<Y_NN->dim_y;j++)
+		{
+			cout<<X.M[j*Y_NN->dim_x+i]<<"\t"<<Y.M[j*Y_NN->dim_x+i]<<"\t"<<Y_NN->M[j*Y_NN->dim_x+i]<<"\n";
+		}
+	}
 	//cout<<Y_NN<<"\n";	
 	//Y_NN->print_matrix();
 
-	// forward propogation
-	neural_network.forward(&X,&Y_NN);
+	//std::cout<<SIGMOID_1.sigmoid_activations->dim_y<<"\n";
 
-	mean_squared_error_2d_gpu(Y_NN,&Y,&cost_gradient,cost);
 
-	cout<<*cost<<"\n";
-	// Now we have to do backpropogation 
-	// We have the gradient of the cost function right now 
-	Matrix* tmp_delta = nullptr;
-	tmp_delta = new Matrix(1,1000);
-	LINLAYER_2.backward(&cost_gradient,tmp_delta);
+
+
+	//Matrix* tmp_delta = nullptr;
+	//tmp_delta = new Matrix(1,1000);
+	//LINLAYER_2.backward(&cost_gradient,tmp_delta);
+	//Matrix* tmp_delta_2 = nullptr;
+	//tmp_delta_2 = new Matrix(1,100);
+	//SIGMOID_1.backward(tmp_delta,tmp_delta_2);
 		
 	return 0;
 }
