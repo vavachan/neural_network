@@ -9,6 +9,7 @@
 #include <cmath>
 #include <vector>
 
+
 using namespace std;
 
 float function(float x)
@@ -20,15 +21,30 @@ float function(float x)
 	return cos(x_radians);
 }
 
+float function_2d(float x,float y)
+{
+	return (x*x + y - 11)*(x*x + y - 11) + (x + y*y -7)*(x + y*y -7);
+
+}
+
 int main()
 {
 	/*This main will be used to test the neural network on a simple function 
 	  We can see if the neural network can store a simple function. 
 	  it could be an image or a 1d function like sinx. 
 	  doing so will test backprop etc. 
+
+	  update 19/11/2022 
+
+	  sin(X) function can be learned: 
+	  now trying a 2D function so that further test of code is done. 
 	*/
 
+
+	/* THIS IS FOR 1D FUNCTION : THIS WILL BE REMOVED DURING CLEANUP 
 	// We need an x and y representing the function 
+
+
 	float angle = 0.;
 	float angles[100];
 	float sin_function[100];
@@ -61,66 +77,72 @@ int main()
 			//cout<<i<<"\t"<<j<<"\t"<<Y_NN.M[j*Y.dim_x+i]<<"\n";
 			//B.M[j*sizeX+i] = rand()%10;
 		}
+	} */
+
+	/* We have to create a 2D function. 
+	   for this we need a set of (x,y) and f(x,y) 
+	   the array of (x,y) will be the two dimensional 
+	   input and f(x,y) will be ??!! */
+	cudaSetDevice(1);            // Set device 0 as current
+
+	float x_max = 5.0; 
+	float x_min = -5.0; 
+
+	float y_max = 5.0; 
+	float y_min = -5.0; 
+
+	int sample_size = 100;
+
+	Matrix X(sample_size,2);
+	Matrix Y(sample_size,1);
+
+	for(int i=0;i<X.dim_x;i++)  
+	{
+		float x=5.*(2.*((double) rand() / (RAND_MAX))-1.);
+		float y=5.*(2.*((double) rand() / (RAND_MAX))-1.);
+
+		X.M[0*X.dim_x+i] = x;
+		X.M[1*X.dim_x+i] = y;
+
+		Y.M[0*Y.dim_x+i]=function_2d(x,y);
 	}
 	// now I have X matrix and Y matrix 
 	// now I have to initialize a neural network
+	// Random 1000 samples they are. 
 
-	//layer LINLAYER_1(X.dim_y,Y.dim_y);
-	//sigmoid_layer SIGMOID_1(X.dim_y,Y.dim_y);
-	//layer LINLAYER_2(X.dim_y,Y.dim_y);
+	Matrix* Y_NN = nullptr; //(size_x,size_y);
+//
+  	sigmoid_layer SIGMOID(X.dim_y,50,sample_size);
+  	layer LINLAYER(50,Y.dim_y,sample_size);
 
-	
+	vector<layer*> nn{&SIGMOID,&LINLAYER};
 
-	layer LINLAYER_1(X.dim_y,1000);
-	sigmoid_layer SIGMOID_1(X.dim_y,1000);
-	layer LINLAYER_2(1000,Y.dim_y);
-
-
-	vector<layer*> nn{&SIGMOID_1,&LINLAYER_2};
-	//vector<layer*> nn{&LINLAYER_1};
-
-	sequential_NN neural_network(nn);
-
-	float *cost;	
-	cudaMallocManaged(&cost,sizeof(float));
-	Matrix cost_gradient(size_x,size_y);
-
-
-	for(int i=0; i<100; i++)
-	{
-		*cost=0.;
-		// forward propogation
-		neural_network.forward(&X,&Y_NN);
-		// calculate cost
-		mean_squared_error_2d_gpu(Y_NN,&Y,&cost_gradient,cost);
-		cout<<i<<"\t"<<*cost<<"\n";
-		// Now we have to do backpropogation 
-		// We have the gradient of the cost function right now 
-		neural_network.backward(&cost_gradient);
-		// update the weights
-		neural_network.update();
-	}
-	for(int i=0;i<Y_NN->dim_x;i++)  
-	{
-		for(int j=0;j<Y_NN->dim_y;j++)
-		{
-			cout<<X.M[j*Y_NN->dim_x+i]<<"\t"<<Y.M[j*Y_NN->dim_x+i]<<"\t"<<Y_NN->M[j*Y_NN->dim_x+i]<<"\n";
-		}
-	}
-	//cout<<Y_NN<<"\n";	
-	//Y_NN->print_matrix();
-
-	//std::cout<<SIGMOID_1.sigmoid_activations->dim_y<<"\n";
-
-
-
-
-	//Matrix* tmp_delta = nullptr;
-	//tmp_delta = new Matrix(1,1000);
-	//LINLAYER_2.backward(&cost_gradient,tmp_delta);
-	//Matrix* tmp_delta_2 = nullptr;
-	//tmp_delta_2 = new Matrix(1,100);
-	//SIGMOID_1.backward(tmp_delta,tmp_delta_2);
-		
+	sequential_NN neural_network(nn,sample_size);
+//
+  	float *cost;	
+  	cudaMallocManaged(&cost,sizeof(float));
+  	Matrix cost_gradient(sample_size,Y.dim_y);
+//
+//
+  	for(int i=0; i<500000; i++)
+  	{
+  		*cost=0.;
+  		// forward propogation
+  		neural_network.forward(&X,&Y_NN);
+		//SIGMOID.Weight->print_matrix();
+		//Y_NN->print_matrix();
+  		// calculate cost
+  		mean_squared_error_2d_gpu(Y_NN,&Y,&cost_gradient,cost);
+		//cost_gradient.print_matrix();
+  		cout<<i<<"\t"<<*cost/sample_size<<"\n";
+  		// Now we have to do backpropogation 
+  		// We have the gradient of the cost function right now 
+  		neural_network.backward(&cost_gradient);
+		//LINLAYER.dWeight->print_matrix();
+  		// update the weights
+  		neural_network.update();
+  	}
+	cudaFree(cost);
+	cudaDeviceReset();
 	return 0;
 }

@@ -5,7 +5,8 @@
 #include "matrix_util.h"
 class layer
 {
-	/* the only parameters defined here is 
+	/* 
+	 * The only parameters defined here is 
 	 * how the layer should take an array of 
 	 * inp_size and spit out another array of 
 	 * out_size. The dimensions matching with 
@@ -17,19 +18,28 @@ class layer
 	 *
 	 * */
 	public:
+		int batch_size;
+
 		int inp_size;
 		int out_size;
+
 		Matrix* activations;
 		Matrix* activationsT;
+
 		Matrix* Weight;
 		Matrix* WeightT;
 	        Matrix* dWeight;
+
 	        Matrix* Bias;
 	        Matrix* dBias;
+
+		Matrix* Ones;
+
 	        virtual void forward(Matrix *, Matrix *);
-		layer(int,int);
+		layer(int,int,int);
 	        virtual void backward(Matrix *,Matrix *);
 		void update(float); // we have everything to update the weights.
+		void make_dbias_for_samples(Matrix *);
 };
 
 
@@ -42,7 +52,7 @@ class sigmoid_layer : public layer
 	public :
 		Matrix* sigmoid_activations; // This needs to be stored so one can compute the derivative 
 					     // easily. 
-		sigmoid_layer(int ,int ); // I hope this constructor works.
+		sigmoid_layer(int ,int, int); // I hope this constructor works.
 		void forward(Matrix *, Matrix *);
 		void backward(Matrix *, Matrix *);
 };
@@ -50,10 +60,13 @@ class sigmoid_layer : public layer
 
 void sigmoid_layer_forward_gpu(Matrix *input, Matrix *output);
 void sigmoid_layer_backward_gpu(Matrix *input, Matrix *output);
+void make_copies_gpu(Matrix *single, Matrix *copies);
 __global__ void sigmoid_function(float *, float *, int,int, int,int);
 __global__ void dsigmoid_function(float *, float *, int,int, int,int);
 
 void mean_squared_error_2d_gpu(Matrix *prediction, Matrix *target, Matrix *gradient, float *error);
 __global__ void mean_squared_error_2d(float *prediction,float *target, float *gradient, int sizex, int sizey, float *error);
+
+__global__ void make_copies(float *,float *, int, int);
 
 #endif // NEURAL_NETWORK_H

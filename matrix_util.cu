@@ -13,6 +13,7 @@ Matrix::Matrix(int x,int y)
 }
 Matrix::~Matrix()
 {
+	//std::cout<<"do they even call you?\n";
 	cudaFree(M);
 }
 Matrix& Matrix::operator=(const Matrix& other)
