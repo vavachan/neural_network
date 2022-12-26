@@ -1,6 +1,7 @@
 #include "neural_network.h"
 #include <cmath>
 #include <iostream>
+#include <random>
 
 
 layer::layer(int input_S,int output_S,int bs)
@@ -42,11 +43,13 @@ layer::layer(int input_S,int output_S,int bs)
 
 
 
+	std::default_random_engine generator;
+	std::normal_distribution<double> distribution(0.0,1.0);
 	for(int i=0;i<Weight->dim_x;i++)  
 	{
 		for(int j=0;j<Weight->dim_y;j++)
 		{
-			Weight->M[j*Weight->dim_x+i] = rand()*1.0/RAND_MAX;
+			Weight->M[j*Weight->dim_x+i] = distribution(generator);
 			//B->M[j*sizeX+i] = rand()%10;
 		}
 	}
@@ -54,7 +57,7 @@ layer::layer(int input_S,int output_S,int bs)
 	{
 		for(int j=0;j<Bias->dim_y;j++)
 		{
-			Bias->M[j*Bias->dim_x+i] = rand()*1.0/RAND_MAX;
+			Bias->M[j*Bias->dim_x+i] = distribution(generator);
 			//B.M[j*sizeX+i] = rand()%10;
 		}
 	}
@@ -75,7 +78,8 @@ void layer::forward(Matrix* input, Matrix* output)
 	   Therefore the Weight->dim_x has to match input->dim_y 
 	   Such checks are  done here ? // why o why
 	 */
-	*activations = *input;	
+	*activations = *input;	// activations are the activations from the previous layer. 
+				// Same holds in the sigmoid layer, it means the activation from the previous layer.
 	matrix_multiply_add_gpu(Weight,input,Bias,output);
 }
 
@@ -100,16 +104,7 @@ void layer::backward(Matrix* delta_n,Matrix* delta_n_minus_one)
 
 	matrix_transpose_gpu(Weight,WeightT);
 	matrix_transpose_gpu(activations,activationsT);
-	//std::cout<<"begin delta_n\n";
-	//delta_n->print_matrix();
-	//std::cout<<"end delta_n\n";
-	//std::cout<<"begin actt\n";
-	//activationsT->print_matrix();
-	//std::cout<<"end actt\n";
 	matrix_multiply_gpu(delta_n,activationsT,dWeight); // delta_n has shape (batch_size,out_size) activationsT has dimensions (inp_size,batch_size) therefore dWeight will have dimensions (inp_size,out_size)
-	//std::cout<<"begin dW\n";
-	//dWeight->print_matrix();
-	//std::cout<<"end dW\n";
 	matrix_scalar_product_gpu(dWeight,1./batch_size);
 	/* delta_n is (batch_size,out_size), has to be multiplied with (1,batch_size) matrix made of 1, such that dBias is (1,out_size)
 	   However dBias is of size (batch_size,out_size) but as mentioned in the constructor of this class, dBias has to have batch_size copies 
@@ -118,9 +113,6 @@ void layer::backward(Matrix* delta_n,Matrix* delta_n_minus_one)
 	   */
 	//*dBias = *delta_n; 
 	make_dbias_for_samples(delta_n);
-	//std::cout<<"begin bias\n";
-	//dBias->print_matrix();
-	//std::cout<<"end bias\n";
 	matrix_multiply_gpu(WeightT,delta_n,delta_n_minus_one);
 }
 void layer::update(float learning_rate)
@@ -172,6 +164,7 @@ void sigmoid_layer::forward(Matrix* input, Matrix* output)
 
 	layer::forward(input,tmp);
 
+	//tmp->print_matrix();
 	*sigmoid_activations = *tmp; // we will use this for calculating the derivatives. 
 	//std::cout<<sigmoid_activations<<"\t"<<sigmoid_activations->dim_y<<"\n";
 	sigmoid_layer_forward_gpu(tmp,output);
@@ -312,7 +305,8 @@ void mean_squared_error_2d(float *predictions, float *target, float *gradient, i
 	{
 		//output[row*output_dim_x+col] = 1/(1+exp(input[row*input_dim_x+col]));
 		atomicAdd(error,fdividef(powf(predictions[row*size_x+col]-target[row*size_x+col],2),size_x*size_y));
-		gradient[row*size_x+col] = fdividef(2.*(predictions[row*size_x+col]-target[row*size_x+col]),size_x*size_y) ;
+		//gradient[row*size_x+col] = fdividef(2.*(predictions[row*size_x+col]-target[row*size_x+col]),size_x*size_y) ;
+		gradient[row*size_x+col] = fdividef((predictions[row*size_x+col]-target[row*size_x+col]),1.) ;
 	}
 }
 

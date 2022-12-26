@@ -71,6 +71,8 @@ void sequential_NN::backward(Matrix *delta_n)
 		    delete delta_n_minus_one[i+1];
 		}
 	}
+	delete delta_n_minus_one[0];
+
 }
 void sequential_NN::update()
 {
@@ -78,6 +80,6 @@ void sequential_NN::update()
 
 	for(int i=0; i<layers.size(); i++)
 	{
-		layers[i]->update(-1.*0.01);
+		layers[i]->update(-1.*3.0);
 	}
 }
