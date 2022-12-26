@@ -319,13 +319,38 @@ int main()
 		
 		cout<<epoch<<"\t"<<*cost/sample_size<<"\n";
   	}
-	for(int i=0;i<1;i++)
+	for(int i=0;i<2;i++)
 	{
 		make_test_batch(&X,&Y);
 		neural_network.forward(&X,&Y_NN);
-		Y_NN->print_matrix();
-		cout<<"correct\n";
-		Y.print_matrix();
+		for(int i=0; i < sample_size;i++)
+		{
+			int y_index=0;
+			for(int row=0;row<n_rows;row++)
+			{
+				for(int col=0;col<n_cols;col++)
+				{
+					if(X.M[y_index*X.dim_x+i])
+					{
+						cout<<1;
+					}
+					else
+					{
+						cout<<0;
+					}
+					y_index++;
+				}
+				cout<<"\n";
+			}
+			for(int label=0;label<10;label++)
+			{
+				printf("%d\t%.3f\t%d\n",label,Y_NN->M[label*Y_NN->dim_x+i],int(Y.M[label*Y.dim_x+i]));
+				//cout<<label<<"\t"<<Y_NN->M[label*Y_NN->dim_x+i]<<"\t"<<Y.M[label*Y.dim_x+i]<<"\n";
+			}
+		}
+		//Y_NN->print_matrix();
+		//cout<<"correct\n";
+		//Y.print_matrix();
 	}
 //	for(int i=0; i<sample_size;i++)
 //	{
