@@ -8,9 +8,20 @@
 #include<time.h>
 #include <cmath>
 #include <vector>
-
+#include <fstream>
 
 using namespace std;
+int reverseInt (int i) 
+{
+	unsigned char c1, c2, c3, c4;
+
+	c1 = i & 255;
+	c2 = (i >> 8) & 255;
+	c3 = (i >> 16) & 255;
+	c4 = (i >> 24) & 255;
+
+	return ((int)c1 << 24) + ((int)c2 << 16) + ((int)c3 << 8) + c4;
+}
 
 float function(float x)
 {
@@ -27,6 +38,21 @@ float function_2d(float x,float y)
 
 }
 
+void make_batch(Matrix *X, Matrix *Y)
+{
+	for(int i=0;i<X->dim_x;i++)  
+	{
+		float x=5.*(2.*((double) rand() / (RAND_MAX))-1.);
+		float y=5.*(2.*((double) rand() / (RAND_MAX))-1.);
+		//cout<<x<<"\t"<<y<<"\n";
+
+		X->M[0*X->dim_x+i] = x;
+		X->M[1*X->dim_x+i] = y;
+
+		Y->M[0*Y->dim_x+i]=function_2d(x,y);
+	}
+}
+
 int main()
 {
 	/*This main will be used to test the neural network on a simple function 
@@ -36,48 +62,13 @@ int main()
 
 	  update 19/11/2022 
 
-	  sin(X) function can be learned: 
+	  sin(X) function can be learned:  update 30/11/22 so this was stupid.
 	  now trying a 2D function so that further test of code is done. 
 	*/
 
 
-	/* THIS IS FOR 1D FUNCTION : THIS WILL BE REMOVED DURING CLEANUP 
-	// We need an x and y representing the function 
+	// We need an x and y representing the function
 
-
-	float angle = 0.;
-	float angles[100];
-	float sin_function[100];
-	for(int i=0; i<100; i++)
-	{
-		//cout<<angle<<"\t"<<function(angle)<<"\n";
-		angles[i]=angle;
-		sin_function[i] = function(angle);
-		angle = angle + 360./100;	
-	}
-	int size_x = 1;
-	int size_y = 100;
-	Matrix X(size_x,size_y);
-	Matrix Y(size_x,size_y);
-	Matrix* Y_NN = nullptr; //(size_x,size_y);
-
-	for(int i=0;i<X.dim_x;i++)  
-	{
-		for(int j=0;j<X.dim_y;j++)
-		{
-			X.M[j*X.dim_x+i] = angles[j];
-			//B.M[j*sizeX+i] = rand()%10;
-		}
-	}
-	for(int i=0;i<Y.dim_x;i++)  
-	{
-		for(int j=0;j<Y.dim_y;j++)
-		{
-			Y.M[j*Y.dim_x+i] = sin_function[j];
-			//cout<<i<<"\t"<<j<<"\t"<<Y_NN.M[j*Y.dim_x+i]<<"\n";
-			//B.M[j*sizeX+i] = rand()%10;
-		}
-	} */
 
 	/* We have to create a 2D function. 
 	   for this we need a set of (x,y) and f(x,y) 
@@ -85,35 +76,53 @@ int main()
 	   input and f(x,y) will be ??!! */
 	cudaSetDevice(1);            // Set device 0 as current
 
-	float x_max = 5.0; 
-	float x_min = -5.0; 
+	std::ifstream file("/home/varghese/ACADS/CUDA/cuda_check/MINST/train-images-idx3-ubyte",std::ios::binary);
+	int a;
+	if(file.is_open())
+	{
+		int magic_number=0;
+		int number_of_images=0;
+		int n_rows=0;
+		int n_cols=0;
+		file.read((char*)&magic_number,sizeof(magic_number)); 
+		std::cout<<magic_number<<"\n";//<<number_of_images<<"\n";
+		magic_number= reverseInt(magic_number);
+		file.read((char*)&number_of_images,sizeof(number_of_images));
+		std::cout<<number_of_images<<"\n";
+		number_of_images= reverseInt(number_of_images);
+		file.read((char*)&n_rows,sizeof(n_rows));
+		n_rows= reverseInt(n_rows);
+		file.read((char*)&n_cols,sizeof(n_cols));
+		n_cols= reverseInt(n_cols);
+		std::cout<<magic_number<<"\n";//<<number_of_images<<"\n";
+		for(int i=0;i<5;++i)
+		{
+			for(int r=0;r<n_rows;++r)
+			{
+				std::cout<<"\n";
+				for(int c=0;c<n_cols;++c)
+				{
+					unsigned char temp=0;
+					file.read((char*)&temp,sizeof(temp));
+					if(temp&255)
+						std::cout<<1;
+					else
+						std::cout<<0;
 
-	float y_max = 5.0; 
-	float y_min = -5.0; 
-
-	int sample_size = 100;
+				}
+			}
+		}
+	}
+	int sample_size = 2000;
 
 	Matrix X(sample_size,2);
 	Matrix Y(sample_size,1);
 
-	for(int i=0;i<X.dim_x;i++)  
-	{
-		float x=5.*(2.*((double) rand() / (RAND_MAX))-1.);
-		float y=5.*(2.*((double) rand() / (RAND_MAX))-1.);
-
-		X.M[0*X.dim_x+i] = x;
-		X.M[1*X.dim_x+i] = y;
-
-		Y.M[0*Y.dim_x+i]=function_2d(x,y);
-	}
-	// now I have X matrix and Y matrix 
-	// now I have to initialize a neural network
-	// Random 1000 samples they are. 
 
 	Matrix* Y_NN = nullptr; //(size_x,size_y);
 //
-  	sigmoid_layer SIGMOID(X.dim_y,50,sample_size);
-  	layer LINLAYER(50,Y.dim_y,sample_size);
+  	sigmoid_layer SIGMOID(X.dim_y,150,sample_size);
+  	layer LINLAYER(150,Y.dim_y,sample_size);
 
 	vector<layer*> nn{&SIGMOID,&LINLAYER};
 
@@ -124,9 +133,10 @@ int main()
   	Matrix cost_gradient(sample_size,Y.dim_y);
 //
 //
-  	for(int i=0; i<500000; i++)
+  	for(int i=0; i<10000; i++)
   	{
   		*cost=0.;
+		make_batch(&X,&Y);
   		// forward propogation
   		neural_network.forward(&X,&Y_NN);
 		//SIGMOID.Weight->print_matrix();
@@ -141,8 +151,17 @@ int main()
 		//LINLAYER.dWeight->print_matrix();
   		// update the weights
   		neural_network.update();
+		delete Y_NN;
   	}
+
+//	for(int i=0; i<sample_size;i++)
+//	{
+//		cout<<X.M[0*X.dim_x+i]<<"\t"<<X.M[X.dim_x+i]<<"\t"<<Y.M[i]<<"\t"<<Y_NN->M[i]<<"\n";
+//	}
+
+
 	cudaFree(cost);
 	cudaDeviceReset();
+
 	return 0;
 }
